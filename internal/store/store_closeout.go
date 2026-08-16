@@ -5,6 +5,12 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
+)
+
+const (
+	closeJobLeaseDuration = time.Minute
+	closeJobTimeLayout    = "2006-01-02T15:04:05.000000Z"
 )
 
 // InsertCloseJob creates a new close job. Returns false if a job already exists
@@ -60,9 +66,16 @@ func UpdateCloseJob(ctx context.Context, q DBTX, r CloseJobRow) error {
 // job. It only succeeds when the job is PENDING or its current lease has
 // expired (by virtual clock). Returns true when the lease was acquired.
 func ClaimCloseJobLease(ctx context.Context, q DBTX, legKey, token, nowISO string) (bool, error) {
+	now, err := time.Parse(time.RFC3339Nano, nowISO)
+	if err != nil {
+		return false, fmt.Errorf("store: claim lease: invalid current time %q: %w", nowISO, err)
+	}
+	claimTimeISO := now.UTC().Format(closeJobTimeLayout)
+	leaseExpiresISO := now.Add(closeJobLeaseDuration).UTC().Format(closeJobTimeLayout)
+
 	res, err := q.ExecContext(ctx, `UPDATE close_jobs SET lease_token=?, lease_expires_at=?, state='LEASED'
 		WHERE leg_key=? AND (state='PENDING' OR lease_expires_at='' OR lease_expires_at<=?)`,
-		token, nowISO, legKey, nowISO)
+		token, leaseExpiresISO, legKey, claimTimeISO)
 	if err != nil {
 		return false, fmt.Errorf("store: claim lease: %w", err)
 	}
