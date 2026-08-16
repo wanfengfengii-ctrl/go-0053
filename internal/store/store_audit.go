@@ -17,7 +17,15 @@ func InsertAudit(ctx context.Context, q DBTX, ts, category, ref, payload string)
 
 // ListAudit returns audit records ordered by id, newest last.
 func ListAudit(ctx context.Context, q DBTX, limit int) ([]AuditRow, error) {
-	rows, err := q.QueryContext(ctx, `SELECT id, ts, category, ref, payload FROM audit_records ORDER BY id DESC LIMIT ?`, limit)
+	rows, err := q.QueryContext(ctx, `
+		SELECT id, ts, category, ref, payload
+		FROM (
+			SELECT id, ts, category, ref, payload
+			FROM audit_records
+			ORDER BY id DESC
+			LIMIT ?
+		)
+		ORDER BY id ASC`, limit)
 	if err != nil {
 		return nil, err
 	}
