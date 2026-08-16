@@ -116,7 +116,10 @@ func (e *DecodeError) Error() string {
 // Is enables errors.Is against a bare ErrCode sentinel: a *DecodeError matches
 // ErrBadCRC etc. so callers can write errors.Is(err, typeb.ErrBadCRC).
 func (e *DecodeError) Is(target error) bool {
-	if ec, ok := target.(errCodeSentinel); ok {
+	switch ec := target.(type) {
+	case ErrCode:
+		return e.Code == ec
+	case errCodeSentinel:
 		return e.Code == ErrCode(ec)
 	}
 	return false
