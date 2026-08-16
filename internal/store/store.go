@@ -13,6 +13,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
+	"strings"
 
 	_ "modernc.org/sqlite"
 )
@@ -36,7 +38,14 @@ type Store struct {
 // isolated by connection; tests that need persistence should use a file path
 // under t.TempDir().
 func Open(ctx context.Context, dsn string) (*Store, error) {
-	db, err := sql.Open("sqlite", dsn)
+	params := url.Values{}
+	params.Add("_pragma", "foreign_keys(1)")
+	params.Add("_pragma", "busy_timeout(5000)")
+	separator := "?"
+	if strings.ContainsRune(dsn, '?') {
+		separator = "&"
+	}
+	db, err := sql.Open("sqlite", dsn+separator+params.Encode())
 	if err != nil {
 		return nil, fmt.Errorf("store: open: %w", err)
 	}
@@ -45,14 +54,6 @@ func Open(ctx context.Context, dsn string) (*Store, error) {
 	if _, err := db.ExecContext(ctx, "PRAGMA journal_mode=WAL;"); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("store: pragma journal: %w", err)
-	}
-	if _, err := db.ExecContext(ctx, "PRAGMA foreign_keys=ON;"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("store: pragma fk: %w", err)
-	}
-	if _, err := db.ExecContext(ctx, "PRAGMA busy_timeout=5000;"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("store: pragma busy: %w", err)
 	}
 	if err := applyMigrations(ctx, db); err != nil {
 		db.Close()
