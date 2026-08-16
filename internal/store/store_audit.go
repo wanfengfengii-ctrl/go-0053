@@ -15,9 +15,14 @@ func InsertAudit(ctx context.Context, q DBTX, ts, category, ref, payload string)
 	return nil
 }
 
-// ListAudit returns audit records ordered by id, newest last.
+// ListAudit returns up to the limit most recent audit records, ordered by id
+// from oldest to newest so that the newest record is the last element of the
+// returned slice. When limit is less than the total number of records only the
+// most recent `limit` records are returned, still in oldest-to-newest order.
 func ListAudit(ctx context.Context, q DBTX, limit int) ([]AuditRow, error) {
-	rows, err := q.QueryContext(ctx, `SELECT id, ts, category, ref, payload FROM audit_records ORDER BY id DESC LIMIT ?`, limit)
+	rows, err := q.QueryContext(ctx, `SELECT id, ts, category, ref, payload FROM (
+			SELECT id, ts, category, ref, payload FROM audit_records ORDER BY id DESC LIMIT ?
+		) ORDER BY id ASC`, limit)
 	if err != nil {
 		return nil, err
 	}
