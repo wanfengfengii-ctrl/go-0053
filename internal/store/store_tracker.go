@@ -70,7 +70,7 @@ func UpsertDeparture(ctx context.Context, q DBTX, r DepartureRow) error {
 	_, err := q.ExecContext(ctx, `INSERT INTO bag_leg_departure(leg_key, bag_tag, checkin_fact_id, checkin_time,
 		sort_fact_id, sort_time, screen_fact_id, screen_time, screen_outcome, load_fact_id, load_time,
 		offload_fact_id, offload_time, latest_seq, closed, fence_seq)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(leg_key, bag_tag) DO UPDATE SET
 			checkin_fact_id=excluded.checkin_fact_id, checkin_time=excluded.checkin_time,
 			sort_fact_id=excluded.sort_fact_id, sort_time=excluded.sort_time,
